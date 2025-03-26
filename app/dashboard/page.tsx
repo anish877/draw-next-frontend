@@ -126,7 +126,7 @@ const Dashboard = () => {
     try {
       setIsLoading(true);
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/create-room`, 
+        `${BACKEND_URL || 'http://localhost:3001'}/create-room`, 
         { name: roomName },
         {
           withCredentials: true,
