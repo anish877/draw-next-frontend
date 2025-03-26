@@ -23,7 +23,7 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post(BACKEND_URL+"/login",{email,password})
+      const response = await axios.post(BACKEND_URL+"/login",{email,password},{withCredentials:true})
         setToken(response.data.token)
         setUserId(response.data.userId)
         setUsername(response.data.name)
