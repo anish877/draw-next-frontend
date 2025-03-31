@@ -3,7 +3,6 @@ import { BACKEND_URL } from "../config";
 import rough from 'roughjs';
 import { RoughCanvas } from "roughjs/bin/canvas";
 
-// Define a more specific type for drawing options
 interface DrawingOptions {
     stroke?: string;
     strokeWidth?: number;
@@ -83,46 +82,37 @@ const CHALK_COLORS = [
     '#9e31f5', // purple
 ];
 
-// Add these to your state variables
-let showingUserId: Shape | null = null; // Will store the shape we're showing the userId for
-let userIdTimeout: string | number | NodeJS.Timeout | null | undefined = null; // For clearing the timeout when needed
+let showingUserId: Shape | null = null; 
+let userIdTimeout: string | number | NodeJS.Timeout | null | undefined = null; 
 
-// Add isPointInImage function for selection
 function isPointInImage(x: number, y: number, image: Extract<Shape, {type: "image"}>): boolean {
     return x >= image.x && x <= image.x + image.width && 
            y >= image.y && y <= image.y + image.height;
 }
 
-// Generate a simple unique ID
 function generateId(): string {
-    // Fixed: Return the actual value instead of concatenating functions
     return Math.random().toString(36).substring(2, 9) + Date.now().toString();
 }
 
-// Check if point is inside rectangle
 function isPointInRect(x: number, y: number, rect: Extract<Shape, {type: "rect"}>): boolean {
     return x >= rect.x && x <= rect.x + rect.width && 
            y >= rect.y && y <= rect.y + rect.height;
 }
 
-// Check if point is inside circle
 function isPointInCircle(x: number, y: number, circle: Extract<Shape, {type: "circle"}>): boolean {
     const radiusX = Math.abs(circle.clientx - circle.startx) * 0.5;
     const radiusY = Math.abs(circle.clienty - circle.starty) * 0.5;
     const centerX = circle.startx + (circle.clientx - circle.startx) * 0.5;
     const centerY = circle.starty + (circle.clienty - circle.starty) * 0.5;
     
-    // Calculate normalized distance
     const dx = (x - centerX) / radiusX;
     const dy = (y - centerY) / radiusY;
     return (dx * dx + dy * dy) <= 1;
 }
 
-// Check if point is inside pencil shape (approximation using bounding box of points)
 function isPointInPencil(x: number, y: number, pencil: Extract<Shape, {type: "pencil"}>): boolean {
     if (pencil.points.length < 2) return false;
     
-    // Find bounding box
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     pencil.points.forEach(point => {
         minX = Math.min(minX, point.x);
@@ -131,41 +121,33 @@ function isPointInPencil(x: number, y: number, pencil: Extract<Shape, {type: "pe
         maxY = Math.max(maxY, point.y);
     });
     
-    // Add some padding for easier selection
     const padding = 5;
     return x >= minX - padding && x <= maxX + padding && 
            y >= minY - padding && y <= maxY + padding;
 }
 
-// Check if point is inside text
 function isPointInText(x: number, y: number, text: Extract<Shape, {type: "text"}>): boolean {
-    // Approximate text area based on content and font size
     const style = text.style || { fontSize: 16, isBold: false, isItalic: false };
     const lineHeight = style.fontSize * 1.2;
     const lines = text.content.split('\n');
     const height = lines.length * lineHeight;
-    const width = Math.max(...lines.map(line => line.length * (style.fontSize * 0.6))); // better estimate
+    const width = Math.max(...lines.map(line => line.length * (style.fontSize * 0.6))); 
     
     return x >= text.x && x <= text.x + width && 
            y >= text.y && y <= text.y + height;
 }
 
 function drawImage(shape: Extract<Shape, {type: "image"}>, ctx: CanvasRenderingContext2D) {
-    // Create a new image element
     const img = new Image();
     
-    // Set the image source to trigger loading
     img.src = shape.src;
     
-    // Set a onload handler to draw the image once it's loaded
     img.onload = () => {
         ctx.drawImage(img, shape.x, shape.y, shape.width, shape.height);
     };
     
-    // Handle potential errors
     img.onerror = () => {
         console.error('Error loading image');
-        // Draw a placeholder with an error message
         ctx.save();
         ctx.fillStyle = '#ff6666';
         ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
@@ -215,17 +197,15 @@ canvas: HTMLCanvasElement, roomId: string, socket: WebSocket, userId: string, ty
     let isDragging = false;
     let currentShape: Shape | null = null;
     let selectedShape: Shape | null = null;
-    let oldSelectedShape: Shape | null = null; // Store original state for deletion
+    let oldSelectedShape: Shape | null = null;
     let dragOffsetX = 0;
     let dragOffsetY = 0;
     
     const ctx = canvas.getContext("2d");
-    if (!ctx) return () => {}; // Return empty cleanup function if no context
+    if (!ctx) return () => {}; 
 
-    // Initialize RoughJS
     const roughCanvas = rough.canvas(canvas);
     
-    // Set up drawing style
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.lineWidth = 2;
@@ -234,14 +214,11 @@ canvas: HTMLCanvasElement, roomId: string, socket: WebSocket, userId: string, ty
     let existingShapes: Shape[] = await getExistingShapes(roomId, userId);
     clearCanvasAndDrawAll(existingShapes, canvas, ctx, roughCanvas, selectedShape, currentShape);
 
-    // Store message handler reference so we can remove it later
-    // Update handleSocketMessage to properly parse and handle messages
     const handleSocketMessage = (e: MessageEvent) => {
         try {
             const message = JSON.parse(e.data);
             
             if (message.type === "chat" || message.type === "image_element") {
-                // Fixed: Proper parsing of messages
                 let parsedShape: Shape;
                 
                 if (message.type === "chat") {
@@ -260,12 +237,10 @@ canvas: HTMLCanvasElement, roomId: string, socket: WebSocket, userId: string, ty
                     }
                 }
                 
-                // Check if this is an update to an existing shape
                 const existingIndex = existingShapes.findIndex(s => s.id === parsedShape.id);
                 if (existingIndex >= 0) {
                     existingShapes[existingIndex] = parsedShape;
                 } else {
-                    // Fixed: Set iseditable properly
                     if (message.userId === userId) {
                         parsedShape.iseditable = true;
                     } else {
@@ -354,7 +329,7 @@ canvas: HTMLCanvasElement, roomId: string, socket: WebSocket, userId: string, ty
                             userIdTimeout = setTimeout(() => {
                                 showingUserId = null;
                                 clearCanvasAndDrawAll(existingShapes, canvas, ctx, roughCanvas, selectedShape, currentShape);
-                            }, 3000); // Show for 3 seconds
+                            }, 3000); 
                         }
                     }
                     
