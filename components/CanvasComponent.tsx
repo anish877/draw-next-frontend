@@ -36,7 +36,7 @@ const CanvasComponent = ({roomId, socket}: {roomId: string, socket: WebSocket}) 
     const cleanupFunctionRef = useRef<(() => void) | null>(null);
     const [type, setType] = useState<ToolType>("select");
     const [showTextInput, setShowTextInput] = useState(false);
-    const [textPosition, setTextPosition] = useState({ x: 0, y: 0 });
+    const [textPosition, setTextPosition] = useState({ x: 0, y: 0 }); 
     const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
     const [selectedColor, setSelectedColor] = useState(CHALK_COLORS[0]);
     const [fontSize, setFontSize] = useState(16);
