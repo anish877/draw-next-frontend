@@ -8,7 +8,6 @@ import { Circle, Square, Pencil, MousePointer, FileImage, Type, Check, X, Messag
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import OnlineUsersDropdown from './OnlineUsersComponent';
-import AnimatedChalkDust from '@/components/AnimatedChalkDust';
 import AIDrawingGenerator from './AIDrawingGenerator';
 
 type ToolType = "select" | "circle" | "rect" | "pencil" | "image" | "text" | "pan";
@@ -461,8 +460,8 @@ const CanvasComponent = ({roomId, socket}: {roomId: string, socket: WebSocket}) 
             const imageData = event.target.result;
             const img = new Image();
             img.onload = () => {
-                const maxWidth = 800;
-                const maxHeight = 600;
+                const maxWidth = 400;
+                const maxHeight = 400;
                 let width = img.width;
                 let height = img.height;
 
@@ -496,6 +495,7 @@ const CanvasComponent = ({roomId, socket}: {roomId: string, socket: WebSocket}) 
                 }));
                 
                 try {
+                    console.log(imageObject)
                     socket.send(JSON.stringify({
                         type: "image_element",
                         message: JSON.stringify(imageObject),
@@ -561,10 +561,6 @@ const CanvasComponent = ({roomId, socket}: {roomId: string, socket: WebSocket}) 
 
     return (
         <div className="min-h-screen chalkboard overflow-hidden">
-            {/* Add chalk dust animation for consistency with landing page */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
-                <AnimatedChalkDust intensity="low" />
-            </div>
             
             <OnlineUsersDropdown users={onlineUsers} />
             
