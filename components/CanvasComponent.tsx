@@ -53,9 +53,7 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
     const [canvasInitialized, setCanvasInitialized] = useState(false);
     const [isChatVisible, setIsChatVisible] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState(0);
-    const [canvasObjects, setCanvasObjects] = useState<{[id: string]: unknown}>({});
     const [isMovingObject, setIsMovingObject] = useState(false);
-    const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
     const {username} = useAuth();
     const [boardName, setBoardName] = useState("Untitled Board");
     const [showBoardInfo, setShowBoardInfo] = useState(true);
@@ -84,10 +82,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                     try {
                         const canvasData = JSON.parse(data.message);
                         if (canvasData.id) {
-                            setCanvasObjects(prev => ({
-                                ...prev,
-                                [canvasData.id]: canvasData
-                            }));
                         }
                     } catch (err) {
                         console.error('Error parsing canvas update:', err);
@@ -371,12 +365,10 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                     type, 
                     selectedColor, 
                     (id: string) => {
-                        setSelectedObjectId(id);
                         setIsMovingObject(true);
                     },
                     () => {
                         setIsMovingObject(false);
-                        setSelectedObjectId(null);
                     },
                     username
                 );
@@ -469,11 +461,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                 id: textId
             };
 
-            setCanvasObjects(prev => ({
-                ...prev,
-                [textId]: textObject
-            }));
-
             socket.send(JSON.stringify({
                 type: "text_element",
                 message: JSON.stringify(textObject),
@@ -541,11 +528,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                     src: imageData,
                     id: imageId
                 };
-
-                setCanvasObjects(prev => ({
-                    ...prev,
-                    [imageId]: imageObject
-                }));
                 
                 try {
                     socket.send(JSON.stringify({

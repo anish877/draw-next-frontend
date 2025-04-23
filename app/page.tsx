@@ -10,7 +10,6 @@ import {
   MessageSquare, 
   Bot,
   Image as ImageIcon, 
-  Lock, 
   Shield,
   Github, 
   Twitter,
@@ -18,7 +17,6 @@ import {
   Youtube,
   CheckCircle,
   ArrowRight,
-  Users,
   Globe
 } from "lucide-react";
 
