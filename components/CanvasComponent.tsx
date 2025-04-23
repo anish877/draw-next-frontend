@@ -797,7 +797,7 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                                     I
                                 </Button>
                                 <Popover>
-                                <PopoverTrigger asChild>
+                                   <PopoverTrigger asChild>
                                     <Button variant="outline" size="sm" className="h-8 w-8 p-0" style={{ backgroundColor: selectedColor }}>
                                         <span className="sr-only">Pick color</span>
                                     </Button>
@@ -940,7 +940,8 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                         </div>
                         <ChatSection 
                             socket={socket} 
-                            roomId={roomId} 
+                            roomId={roomId}
+                            //@ts-expect-error 
                             userId={userId}
                             username={username}
                         />
