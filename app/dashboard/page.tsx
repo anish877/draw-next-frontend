@@ -119,7 +119,7 @@ const Dashboard = () => {
     if (!token) {
       toast.error("You must be logged in to create a room");
       // Redirect to login page
-      router.push('/login');
+      router.push('/auth/login');
       return;
     }
 
