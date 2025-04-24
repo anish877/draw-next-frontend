@@ -4,13 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ChatSection from './ChatSection';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Circle, Square, Pencil, MousePointer, FileImage, 
-  Type, Check, X, MessageCircle, MinimizeIcon, 
-  ZoomIn, ZoomOut, Move, Sparkles, Users, Download,
-  Save, Share2, Grid, MonitorSmartphone, ArrowLeft
-} from "lucide-react";
+import { Circle, Square, Pencil, MousePointer, FileImage, Type, Check, X, MessageCircle, MinimizeIcon, ZoomIn, ZoomOut, Move, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import OnlineUsersDropdown from './OnlineUsersComponent';
@@ -18,23 +12,22 @@ import AIDrawingGenerator from './AIDrawingGenerator';
 
 type ToolType = "select" | "circle" | "rect" | "pencil" | "image" | "text" | "pan";
 
-// Enhanced chalk colors with more professional tones that match the landing page
 const CHALK_COLORS = [
-  '#ffffff', // white
-  '#f9eaa9', // soft yellow
-  '#a0c0ff', // blue - matches brand color
-  '#ffb0d0', // soft pink
-  '#ffa599', // soft salmon
-  '#a0ffa0', // soft green
-  '#a0ffff', // soft cyan
-  '#e0a0ff', // soft lavender
-  '#ffe0a0', // soft gold
-  '#e0e0e0', // light gray
-  '#ffbf99', // soft peach
-  '#2563eb', // brand blue - matches landing page
+    '#ffffff', // white with glow/translucency
+    '#f9eaa9', // soft yellow with glow
+    '#a0c0ff', // brighter blue with glow
+    '#ffb0d0', // brighter pink with glow
+    '#ffa599', // brighter salmon with glow
+    '#a0ffa0', // brighter green with glow
+    '#a0ffff', // brighter cyan with glow
+    '#e0a0ff', // brighter lavender with glow
+    '#ffe0a0', // brighter gold with glow
+    '#e0e0e0', // brighter gray with glow
+    '#ffbf99', // brighter peach with glow
+    '#a0ffe0', // brighter turquoise with glow
 ];
 
-const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebSocket, onExit?: () => void}) => {
+const CanvasComponent = ({roomId, socket}: {roomId: string, socket: WebSocket}) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const textInputRef = useRef<HTMLTextAreaElement>(null);
@@ -51,12 +44,12 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
     const { userId } = useAuth();
     const [onlineUsers, setOnlineUsers] = useState<Array<{ name: string; userId: string }>>([]);
     const [canvasInitialized, setCanvasInitialized] = useState(false);
-    const [isChatVisible, setIsChatVisible] = useState(false);
+    const [isChatVisible, setIsChatVisible] = useState(true);
     const [unreadMessages, setUnreadMessages] = useState(0);
+    const [,setCanvasObjects] = useState<{[id: string]: unknown}>({});
     const [isMovingObject, setIsMovingObject] = useState(false);
+    const [,setSelectedObjectId] = useState<string | null>(null);
     const {username} = useAuth();
-    const [boardName, setBoardName] = useState("Untitled Board");
-    const [showBoardInfo, setShowBoardInfo] = useState(true);
 
     const [scale, setScale] = useState(1);
     const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -65,8 +58,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
     const [minZoom] = useState(0.1);
     const [maxZoom] = useState(5);
     const [showAIDrawingModal, setShowAIDrawingModal] = useState(false);
-    const [showGrid, setShowGrid] = useState(true);
-    const [activeTab, setActiveTab] = useState("draw");
 
     useEffect(() => {
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
@@ -82,22 +73,22 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                     try {
                         const canvasData = JSON.parse(data.message);
                         if (canvasData.id) {
+                            setCanvasObjects(prev => ({
+                                ...prev,
+                                [canvasData.id]: canvasData
+                            }));
                         }
                     } catch (err) {
                         console.error('Error parsing canvas update:', err);
                     }
                 } else if (data.type === 'move_object') {
+                    // Handle object movement updates
                     try {
                         const moveData = JSON.parse(data.message);
                         if (moveData.id) {
-                            // Handle object movement logic
                         }
                     } catch (err) {
                         console.error('Error parsing move update:', err);
-                    }
-                } else if (data.type === 'board_info') {
-                    if (data.name) {
-                        setBoardName(data.name);
                     }
                 }
             } catch (error) {
@@ -112,7 +103,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         };
     }, [socket, isChatVisible]);
 
-    // Canvas resize handling
     useEffect(() => {
         if (!canvasRef.current || !containerRef.current) return;
         
@@ -139,7 +129,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
             
             setCanvasInitialized(true);
         };
-        
         let resizeTimeout: NodeJS.Timeout | null = null;
         const debouncedResize = () => {
             if (resizeTimeout) {
@@ -147,7 +136,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
             }
             resizeTimeout = setTimeout(handleResize, 250);
         };
-        
         handleResize();
         window.addEventListener('resize', debouncedResize);
         
@@ -159,42 +147,16 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         };
     }, [canvasInitialized]);
 
-    // Canvas transformations
     const applyTransformations = useCallback((ctx: CanvasRenderingContext2D) => {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        
-        // Draw grid if enabled
-        if (showGrid) {
-            const gridSize = 20;
-            const offsetX = offset.x % (gridSize * scale);
-            const offsetY = offset.y % (gridSize * scale);
-            
-            ctx.strokeStyle = 'rgba(200, 200, 200, 0.15)';
-            ctx.lineWidth = 1;
-            
-            for (let x = offsetX; x < ctx.canvas.width; x += gridSize * scale) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, ctx.canvas.height);
-                ctx.stroke();
-            }
-            
-            for (let y = offsetY; y < ctx.canvas.height; y += gridSize * scale) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(ctx.canvas.width, y);
-                ctx.stroke();
-            }
-        }
         
         ctx.setTransform(
             scale, 0, 0, scale, 
             offset.x, offset.y
         );
-    }, [scale, offset, showGrid]);
+    }, [scale, offset]);
 
-    // Coordinate conversion
     const screenToCanvasCoords = useCallback((screenX: number, screenY: number) => {
         if (!canvasRef.current) return { x: 0, y: 0 };
         
@@ -205,7 +167,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         return { x, y };
     }, [scale, offset]);
 
-    // Panning handlers
     const handlePanning = useCallback((e: MouseEvent) => {
         if (!isPanning || type !== "pan") return;
         
@@ -244,7 +205,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         setIsPanning(false);
     }, []);
 
-    // Mouse event listeners
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -260,7 +220,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         };
     }, [startPanning, handlePanning, endPanning]);
 
-    // Wheel zoom handler
     const handleWheel = useCallback((e: WheelEvent) => {
         e.preventDefault();
         
@@ -297,7 +256,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         };
     }, [handleWheel]);
 
-    // Apply transformations when scale/offset changes
     useEffect(() => {
         if (!canvasRef.current) return;
         
@@ -307,7 +265,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         }
     }, [scale, offset, applyTransformations]);
 
-    // Canvas click handler for text and image placement
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -345,7 +302,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         return undefined;
     }, [type, isMovingObject, screenToCanvasCoords]);
     
-    // Initialize drawing
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas || !socket || socket.readyState !== WebSocket.OPEN) return;
@@ -365,10 +321,12 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                     type, 
                     selectedColor, 
                     (id: string) => {
+                        setSelectedObjectId(id);
                         setIsMovingObject(true);
                     },
                     () => {
                         setIsMovingObject(false);
+                        setSelectedObjectId(null);
                     },
                     username
                 );
@@ -391,7 +349,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         };
     }, [roomId, socket, userId, type, selectedColor, scale, offset, screenToCanvasCoords, username]);
 
-    // Zoom controls
     const zoomIn = () => {
         const newScale = Math.min(maxZoom, scale * 1.2);
         setScale(newScale);
@@ -437,7 +394,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         setOffset({ x: 0, y: 0 });
     };
 
-    // Text handling
     const handleTextSubmit = () => {
         if (!textInputRef.current?.value.trim() || !socket || socket.readyState !== WebSocket.OPEN) return;
         
@@ -461,6 +417,11 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                 id: textId
             };
 
+            setCanvasObjects(prev => ({
+                ...prev,
+                [textId]: textObject
+            }));
+
             socket.send(JSON.stringify({
                 type: "text_element",
                 message: JSON.stringify(textObject),
@@ -475,7 +436,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         }
     };
 
-    // Image handling
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0 || !socket || socket.readyState !== WebSocket.OPEN) return;
         
@@ -528,8 +488,14 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                     src: imageData,
                     id: imageId
                 };
+
+                setCanvasObjects(prev => ({
+                    ...prev,
+                    [imageId]: imageObject
+                }));
                 
                 try {
+                    console.log(imageObject)
                     socket.send(JSON.stringify({
                         type: "image_element",
                         message: JSON.stringify(imageObject),
@@ -550,7 +516,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         }
     };
 
-    // Color picker component
     const ColorPicker = () => (
         <div className="grid grid-cols-6 gap-2 p-2">
             {CHALK_COLORS.map((color) => (
@@ -558,7 +523,7 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                     key={color}
                     className={cn(
                         "w-6 h-6 rounded-full border-2",
-                        color === selectedColor ? "border-blue-500" : "border-transparent"
+                        color === selectedColor ? "border-white" : "border-transparent"
                     )}
                     style={{ backgroundColor: color }}
                     onClick={() => setSelectedColor(color)}
@@ -568,7 +533,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         </div>
     );
 
-    // Tool definitions
     const tools = [
         { type: "select", icon: MousePointer, label: "Select" },
         { type: "circle", icon: Circle, label: "Circle" },
@@ -579,7 +543,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
         { type: "pan", icon: Move, label: "Pan" }
     ] as const;
 
-    // Text input handlers
     const handleTextKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Escape') {
             setShowTextInput(false);
@@ -587,8 +550,6 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
             handleTextSubmit();
         }
     };
-    
-    // Toggle chat visibility
     const toggleChat = () => {
         setIsChatVisible(!isChatVisible);
         if (!isChatVisible) {
@@ -599,107 +560,15 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
     const isSocketConnected = socket && socket.readyState === WebSocket.OPEN;
 
     return (
-        <div className="min-h-screen bg-slate-50 overflow-hidden">
-            {/* Header bar */}
-            <header className="bg-white shadow-sm px-4 py-2 border-b border-slate-200 flex items-center justify-between z-50">
-                <div className="flex items-center gap-4">
-                    <Button 
-                        variant="ghost" 
-                        onClick={onExit} 
-                        className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                    >
-                        <ArrowLeft className="h-5 w-5 mr-2" />
-                        <span>Exit</span>
-                    </Button>
-                    
-                    {showBoardInfo ? (
-                        <div className="flex items-baseline gap-2">
-                            <h1 className="font-medium text-lg text-slate-800">
-                                {boardName}
-                            </h1>
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-                                {roomId.substring(0, 8)}
-                            </span>
-                        </div>
-                    ) : (
-                        <input
-                            type="text"
-                            value={boardName}
-                            onChange={(e) => setBoardName(e.target.value)}
-                            className="font-medium text-lg text-slate-800 border-b border-dashed border-slate-300 focus:border-blue-500 focus:outline-none bg-transparent"
-                            onBlur={() => setShowBoardInfo(true)}
-                            autoFocus
-                        />
-                    )}
-                </div>
-                
-                <div className="flex items-center gap-2">
-                    <OnlineUsersDropdown users={onlineUsers} />
-                    
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant="outline" className="text-blue-600 border-blue-200 hover:bg-blue-50">
-                                <Share2 className="h-4 w-4 mr-2" />
-                                Share
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-72">
-                            <div className="space-y-2">
-                                <h3 className="font-medium">Share this board</h3>
-                                <div className="flex">
-                                    <input
-                                        type="text"
-                                        value={`sketchboard.com/board/${roomId}`}
-                                        readOnly
-                                        className="flex-1 px-3 py-2 border border-r-0 rounded-l-md border-slate-300 bg-slate-50 text-sm"
-                                    />
-                                    <Button className="rounded-l-none">Copy</Button>
-                                </div>
-                                <div className="pt-2">
-                                    <Button variant="outline" className="w-full text-slate-600">
-                                        <Users className="h-4 w-4 mr-2" />
-                                        Manage Permissions
-                                    </Button>
-                                </div>
-                            </div>
-                        </PopoverContent>
-                    </Popover>
-                    
-                    <Button variant="ghost" className="text-slate-600">
-                        <Save className="h-4 w-4 mr-2" />
-                        Save
-                    </Button>
-                    
-                    <Button variant="ghost" className="text-slate-600">
-                        <Download className="h-4 w-4 mr-2" />
-                        Export
-                    </Button>
-                </div>
-            </header>
+        <div className="min-h-screen chalkboard overflow-hidden">
             
-            <div ref={containerRef} className="relative h-[calc(100vh-60px)] w-screen overflow-hidden">
-                {/* Main tabs */}
-                <Tabs 
-                    value={activeTab} 
-                    onValueChange={setActiveTab}
-                    className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20"
-                >
-                    <TabsList className="bg-white border border-slate-200 shadow-sm">
-                        <TabsTrigger value="draw" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600">
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Draw
-                        </TabsTrigger>
-                        <TabsTrigger value="view" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600">
-                            <MonitorSmartphone className="h-4 w-4 mr-2" />
-                            Present
-                        </TabsTrigger>
-                    </TabsList>
-                </Tabs>
-                
-                {/* Canvas */}
+            <OnlineUsersDropdown users={onlineUsers} />
+            
+            <div ref={containerRef} className="relative h-screen w-screen overflow-hidden">
                 <canvas 
                     ref={canvasRef} 
-                    className="absolute top-0 left-0 w-full h-full cursor-crosshair bg-white"
+                    className="absolute top-0 left-0 w-full h-full cursor-crosshair"
+                    // Add cursor style based on selected tool
                     style={{
                         cursor: type === 'pan' ? 'grab' : 
                                 isPanning ? 'grabbing' : 
@@ -718,13 +587,9 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                     </div>
                 )}
                 
-                {/* Connection status indicator */}
+                {/* Connection status indicator - styled to match chalk theme */}
                 {!isSocketConnected && (
-                    <div className="absolute top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-md z-50 flex items-center gap-2 shadow-md">
-                        <span className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                        </span>
+                    <div className="absolute top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-md z-50 border-2 border-white">
                         Disconnected - Trying to reconnect...
                     </div>
                 )}
@@ -739,9 +604,9 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                     aria-label="Upload image"
                 />
 
-                {/* Text input overlay */}
+                {/* Text input overlay with formatting controls - styled to match chalk theme */}
                 {showTextInput && (
-                    <Card className="absolute z-20 bg-white shadow-lg border border-slate-200"
+                    <Card className="absolute z-20 bg-[#1a1a1a] border-[#444444]"
                         style={{
                             left: offset.x + textPosition.x * scale,
                             top: offset.y + textPosition.y * scale,
@@ -749,7 +614,7 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                         <CardContent className="p-4">
                             <div className="flex gap-2 mb-2">
                                 <select
-                                    className="bg-slate-50 text-slate-800 px-2 py-1 rounded border border-slate-300"
+                                    className="bg-[#333333] text-white px-2 py-1 rounded border border-[#555555]"
                                     value={fontSize}
                                     onChange={(e) => setFontSize(Number(e.target.value))}
                                     aria-label="Font size"
@@ -762,7 +627,7 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                                     variant={isBold ? "default" : "secondary"}
                                     size="sm"
                                     onClick={() => setIsBold(!isBold)}
-                                    className={cn("font-bold", isBold ? "bg-blue-600" : "")}
+                                    className="font-bold"
                                     aria-label="Bold"
                                     aria-pressed={isBold}
                                 >
@@ -772,160 +637,172 @@ const CanvasComponent = ({roomId, socket, onExit}: {roomId: string, socket: WebS
                                     variant={isItalic ? "default" : "secondary"}
                                     size="sm"
                                     onClick={() => setIsItalic(!isItalic)}
-                                    className={cn("italic", isItalic ? "bg-blue-600" : "")}
+                                    className="italic"
                                     aria-label="Italic"
                                     aria-pressed={isItalic}
                                 >
                                     I
                                 </Button>
                                 <Popover>
-                                   <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" style={{ backgroundColor: selectedColor }}>
-                                        <span className="sr-only">Pick color</span>
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <ColorPicker />
-                                </PopoverContent>
-                            </Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            className="w-8 h-8"
+                                            style={{ backgroundColor: selectedColor }}
+                                            aria-label="Select color"
+                                        />
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0 bg-[#333333] border-[#555555]">
+                                        <ColorPicker />
+                                    </PopoverContent>
+                                </Popover>
                             </div>
-                            <div className="flex gap-2">
-                                <textarea
-                                    ref={textInputRef}
-                                    className="border border-slate-300 rounded w-64 h-24 p-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="Enter text here..."
-                                    onKeyDown={handleTextKeyDown}
-                                    autoFocus
-                                />
-                            </div>
+                            <textarea
+                                ref={textInputRef}
+                                className="bg-[#333333] text-white border border-[#555555] p-2 rounded-md w-full min-w-[200px]"
+                                rows={4}
+                                placeholder="Enter text here..."
+                                style={{
+                                    fontSize: `${fontSize}px`,
+                                    fontWeight: isBold ? 'bold' : 'normal',
+                                    fontStyle: isItalic ? 'italic' : 'normal',
+                                    color: selectedColor
+                                }}
+                                onKeyDown={handleTextKeyDown}
+                            />
                             <div className="flex justify-end gap-2 mt-2">
-                                <Button variant="outline" onClick={() => setShowTextInput(false)} className="text-slate-600">
-                                    <X className="h-4 w-4 mr-1" />
-                                    Cancel
+                                <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => setShowTextInput(false)}
+                                    aria-label="Cancel"
+                                >
+                                    <X className="w-4 h-4" />
                                 </Button>
-                                <Button onClick={handleTextSubmit} className="bg-blue-600 hover:bg-blue-700 text-white">
-                                    <Check className="h-4 w-4 mr-1" />
-                                    Add Text
+                                <Button
+                                    size="sm"
+                                    onClick={handleTextSubmit}
+                                    aria-label="Submit text"
+                                >
+                                    <Check className="w-4 h-4" />
                                 </Button>
                             </div>
                         </CardContent>
                     </Card>
                 )}
 
-                {/* Tools panel */}
-                <Card className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white shadow-lg border border-slate-200 z-20 p-2">
-                    <CardContent className="p-0 space-y-1">
+                {/* Tools panel - styled to match chalk theme */}
+                <Card className="absolute left-4 top-1/2 -translate-y-1/2 bg-[#1a1a1a] w-auto z-10 border-[#555555]">
+                    <CardContent className="flex flex-col gap-2 p-2 justify-center items-center">
                         {tools.map((tool) => (
                             <Button
                                 key={tool.type}
-                                variant={type === tool.type ? "default" : "ghost"}
-                                className={cn(
-                                    "w-full justify-start",
-                                    type === tool.type 
-                                        ? "bg-blue-600 text-white hover:bg-blue-700" 
-                                        : "text-slate-600 hover:bg-slate-100"
-                                )}
+                                variant={type === tool.type ? "default" : "secondary"}
+                                size="icon"
                                 onClick={() => setType(tool.type)}
-                                title={tool.label}
+                                className={cn(
+                                    "w-10 h-10 bg-[#1a1a1a]",
+                                    type === tool.type ? "bg-[#444444] hover:bg-[#444444]" : "hover:bg-[#333333]",
+                                    "text-[#ffffff]"
+                                )}
+                                aria-label={tool.label}
+                                aria-pressed={type === tool.type}
                             >
                                 <tool.icon className="h-5 w-5" />
-                                <span className="ml-2 text-sm">{tool.label}</span>
                             </Button>
                         ))}
-                        <hr className="my-2 border-slate-200" />
-                        <Button
-                            variant="ghost"
-                            className="w-full justify-start text-slate-600 hover:bg-slate-100"
-                            onClick={() => setShowAIDrawingModal(true)}
-                            title="AI Drawing Assistant"
-                        >
-                            <Sparkles className="h-5 w-5" />
-                            <span className="ml-2 text-sm">AI Draw</span>
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className="w-full justify-start text-slate-600 hover:bg-slate-100"
-                            onClick={() => setShowGrid(!showGrid)}
-                            title="Toggle Grid"
-                        >
-                            <Grid className="h-5 w-5" />
-                            <span className="ml-2 text-sm">Grid</span>
-                        </Button>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    className="w-7 h-7 m-1 rounded-full flex justify-center items-center"
+                                    style={{ backgroundColor: selectedColor }}
+                                    aria-label="Color picker"
+                                />
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 bg-[#333333] border-[#555555]">
+                                <ColorPicker />
+                            </PopoverContent>
+                        </Popover>
                     </CardContent>
                 </Card>
 
-                {/* Zoom controls */}
-                <Card className="absolute right-4 bottom-4 bg-white shadow-lg border border-slate-200 z-20">
-                    <CardContent className="p-1 flex items-center gap-1">
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={zoomOut} 
-                            className="text-slate-600 hover:bg-slate-100 h-8 w-8 p-0"
-                            title="Zoom Out"
+                {/* Zoom controls panel */}
+                <Card className="absolute right-4 top-1/2 -translate-y-1/2 bg-[#1a1a1a] w-auto z-10 border-[#555555] font-sans">
+                    <CardContent className="flex flex-col gap-2 p-2 justify-center items-center">
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            onClick={zoomIn}
+                            className="w-10 h-10 bg-[#1a1a1a] hover:bg-[#333333] text-[#ffffff]"
+                            aria-label="Zoom in"
                         >
-                            <ZoomOut className="h-4 w-4" />
+                            <ZoomIn className="h-5 w-5" />
                         </Button>
-                        <div className="px-2 text-sm text-slate-600 min-w-[60px] text-center">
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            onClick={zoomOut}
+                            className="w-10 h-10 bg-[#1a1a1a] hover:bg-[#333333] text-[#ffffff]"
+                            aria-label="Zoom out"
+                        >
+                            <ZoomOut className="h-5 w-5" />
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={resetView}
+                            className="w-10 h-10 bg-[#1a1a1a] hover:bg-[#333333] text-[#ffffff]"
+                            aria-label="Reset view"
+                        >
+                            <span className="text-xs">Reset</span>
+                        </Button>
+                        <div className="text-[#eeeeee] text-xs mt-1">
                             {Math.round(scale * 100)}%
                         </div>
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={zoomIn} 
-                            className="text-slate-600 hover:bg-slate-100 h-8 w-8 p-0"
-                            title="Zoom In"
+                         {/* Add AI Drawing Generator button */}
+                         <Button
+                            variant="secondary"
+                            size="icon"
+                            onClick={() => setShowAIDrawingModal(true)}
+                            className="w-10 h-10 bg-[#1a1a1a] hover:bg-[#333333] text-yellow-400 mt-2"
+                            aria-label="AI Drawing Generator"
                         >
-                            <ZoomIn className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={resetView} 
-                            className="text-slate-600 hover:bg-slate-100 h-8 w-8 p-0"
-                            title="Reset View"
-                        >
-                            <span className="text-xs">100%</span>
+                            <Sparkles className="h-5 w-5" />
                         </Button>
                     </CardContent>
                 </Card>
 
-                {/* Colors palette */}
-                <Card className="absolute left-24 top-1/2 transform -translate-y-1/2 bg-white shadow-lg border border-slate-200 z-20">
-                    <CardContent className="p-2">
-                        <ColorPicker />
-                    </CardContent>
-                </Card>
-
-                {/* Chat toggle button */}
+                {/* Chat toggle button with unread message indicator */}
                 <Button
-                    className="absolute right-4 top-4 bg-white shadow-md border border-slate-200 hover:bg-slate-50 z-20"
+                    variant="secondary"
+                    size="icon"
                     onClick={toggleChat}
-                    title="Chat"
+                    className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-[#333333] hover:bg-[#444444] text-white z-10"
+                    aria-label={isChatVisible ? "Hide chat" : "Show chat"}
                 >
-                    <MessageCircle className="h-5 w-5 text-slate-600" />
-                    {unreadMessages > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                            {unreadMessages}
-                        </span>
+                    {isChatVisible ? (
+                        <MinimizeIcon className="h-5 w-5" />
+                    ) : (
+                        <div className="relative">
+                            <MessageCircle className="h-5 w-5" />
+                            {unreadMessages > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                    {unreadMessages > 9 ? '9+' : unreadMessages}
+                                </span>
+                            )}
+                        </div>
                     )}
                 </Button>
 
                 {/* Chat panel */}
                 {isChatVisible && (
-                    <div className="absolute right-0 h-full w-80 bg-white shadow-lg border-l border-slate-200 z-10 flex flex-col">
-                        <div className="p-3 border-b border-slate-200 flex justify-between items-center">
-                            <h3 className="font-medium text-slate-800">Chat</h3>
-                            <Button variant="ghost" size="sm" onClick={toggleChat} className="h-8 w-8 p-0">
-                                <MinimizeIcon className="h-4 w-4" />
-                            </Button>
-                        </div>
-                        <ChatSection 
-                            socket={socket} 
+                    <div className="absolute bottom-4 right-20 w-80 z-10 font-sans">
+                        <ChatSection
+                            socket={socket}
                             roomId={roomId}
-                            //@ts-expect-error 
-                            userId={userId}
-                            username={username}
                         />
                     </div>
                 )}
